@@ -1,93 +1,115 @@
-#Importar llibreríes
+# Importar llibreríes
 
-from libraries import*
+from libraries import *
 
 from api import get_emt_stop_times, CURRENT_BEARER_TOKEN
 
-# controller.py
+def get_emt_line_colors_mock() -> dict:
+    """Retorna un diccionari amb LineCode -> Color HEX (Simulació)."""
+    return {
+        '1': '#6B21A8',  # Morat 
+        '3': '#0099FF',  # Blau clar 
+        '7': '#CC0000',  # Vermell 
+        '10': '#FF9900', # Taronja
+        '25': '#00CC66', # Verd
+        'N4': '#333333', # Nit (Negre/Gris)
+    }
 
 class EmtModel:
     def __init__(self, view):
         self.view = view
+        self.line_colors = get_emt_line_colors_mock() 
+        
         self._connectSignals()
-        self.num_button = 2
+        self.num_button = 2 
 
     def _connectSignals(self):
-        #self.view.pushButton.clicked.connect( self.model.consultStop)
-        self.view.pushButton.clicked.connect( self.handle_consult_stop)
+        # Connexió del botó principal de consulta
+        self.view.pushButton.clicked.connect(self.handle_consult_stop)
 
-
-    def handle_consult_stop(self):
-        text_Stop = self.view.lineEdit.text() 
-        
-        self.handle_consult_stop(self.num_button, text_Stop)
-        
+        # Connexió dels botons d'historial 
+        self.view.pushButton_2.clicked.connect(lambda: self._execute_stop_query_from_history(self.view.pushButton_2.text()))
+        self.view.pushButton_3.clicked.connect(lambda: self._execute_stop_query_from_history(self.view.pushButton_3.text()))
+        self.view.pushButton_4.clicked.connect(lambda: self._execute_stop_query_from_history(self.view.pushButton_4.text()))
+        self.view.pushButton_5.clicked.connect(lambda: self._execute_stop_query_from_history(self.view.pushButton_5.text()))
+        self.view.pushButton_6.clicked.connect(lambda: self._execute_stop_query_from_history(self.view.pushButton_6.text()))
+        self.view.pushButton_7.clicked.connect(lambda: self._execute_stop_query_from_history(self.view.pushButton_7.text()))
     
     def handle_consult_stop(self):
-        text_Stop = self.view.lineEdit.text()
-        # 1. Validació d'entrada INICIAL (sense cridar al Model)
-        if not text_Stop.isdigit() or not text_Stop:
-             self.view.display_warning("Entrada Invàlida", "Si us plau, introdueix un número de parada que sigui només d'un a 3 dígits.")
-             return
+        """Punt d'entrada principal de consulta (des del camp de text)."""
+        text_Stop = self.view.lineEdit.text().strip()
+        self._execute_stop_query(text_Stop, update_history=True)
 
-        if len(text_Stop) < 1 or len(text_Stop) > 3:
-            self.view.display_warning("Entrada Invàlida", "Si us plau, introdueix un número de parada que tingui entre 1 i 3 dígits.")
+    def _execute_stop_query_from_history(self, stop_text: str):
+        """Executa la consulta."""
+        if not stop_text.isdigit() or not stop_text.strip():
+            self.view.display_warning("Historial Buit", "Aquest botó de l'historial encara no té cap parada assignada.")
             return
 
-        # 2. Crida al Model
-        result = self.fetch_stop_times(text_Stop)
+        self._execute_stop_query(stop_text, update_history=False)
+
+    def _execute_stop_query(self, stop_id: str, update_history: bool):
+        """
+        Lògica principal de consulta d'una parada.
+        """
         
-        # 3. Gestió de la resposta del Model
-        if result['status'] == "error":
-            # Mostra els errors retornats (Servidor, No Dades, etc.)
-            self.view.display_warning("Error de Consulta", result['message'])
+        # Validació d'entrada
+        if not stop_id.isdigit() or not (1 <= len(stop_id) <= 3):
+            self.view.display_warning("Entrada Invàlida", "Si us plau, introdueix un número de parada que tingui entre 1 i 3 dígits (només números).")
+            return
+        
         
 
-        match self.num_button:
-            case 2:
-                button_name = "pushButton_2"
-            case 3:
-                button_name = "pushButton_3"
-            case 4:
-                button_name = "pushButton_4"
-            case 5:
-                button_name = "pushButton_5"
-            case 6:
-                button_name = "pushButton_6"
-            case 7:
-                button_name = "pushButton_7"
-                self.num_button = 1
+        # Crida al Model
+        result = self.fetch_stop_times(stop_id)
+        
+        if result.get('status') == "error":
+            # Si l'API retorna error, ho mostrem i acabem
+            self.view.display_warning("Error de Consulta", result['message'])
+            return
             
-        self.num_button += 1
-        self.view.stopHistory(button_name, text_Stop)
-        self.view.update_scroll_labels("label_7", text_Stop, "textStop", "timeStop")
+        if update_history:
+            button_name = f"pushButton_{self.num_button}"
+            self.num_button = 2 if self.num_button == 7 else self.num_button + 1 
+            self.view.stopHistory(button_name, stop_id)
+        
+        arrivals_found = False
+        
+        for line_data in result.get('data', []):
+            line_code = line_data.get('lineCode')
+            
+            for vehicle in line_data.get('vehicles', []):
+                
+                destination = vehicle.get('destination', 'Desconeguda')
+                seconds = vehicle.get('seconds', 0)
+                minutes = round(seconds / 60)
+                
+                # Obtenció del color de la línia, per defecte gris
+                line_color = self.line_colors.get(line_code, '#888888')
+
+                colored_line = f'<span style="background-color: {line_color}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;">{line_code}</span>'
+                
+                formatted_html = f"<b>Parada {stop_id}:</b> {colored_line} dir. {destination} - <span style='font-weight: bold; color: {line_color};'>{minutes} minuts</span>"
+                 
+                self.view.add_scroll_label(formatted_html)
+                arrivals_found = True
+                
+                return 
+
+        # 7. Missatge si no es troba cap autobús
+        if not arrivals_found:
+            self.view.add_scroll_label(f"Parada {stop_id}: No hi ha busos programats o les dades són buides.")
+
 
     def fetch_stop_times(self, stop_id: str) -> dict:
         """
-        Gestiona la petició d'API per obtenir els temps d'arribada
+        Gestiona la petició d'API per obtenir els temps d'arribada (utilitzant la funció API real/simulada)
         """
-        
         # 1. Crida la funció de l'API
         raw_data = get_emt_stop_times(stop_id, CURRENT_BEARER_TOKEN)
 
-        # 2. Gestió d'errors de connexió/servidor (API ha retornat {'error': ...})
-        """
-        if "error" in raw_data:
-            return {"status": "error", "message": raw_data["error"]}
-        """
-        # 3. Gestió de 'No hi ha dades disponibles'
-        """
-        if not raw_data.get('timeResult', {}).get('times'):
-             return {"status": "error", "message": "No s'han trobat dades d'arribada per aquesta parada."}
-        """
-        # 4. Si tot és OK, retorna les dades i actualitza l'historial
-        """
-        if stop_id not in self.stop_history:
-            self.stop_history.append(stop_id)
-            self.stop_history = self.stop_history[-6:] # Mantenir un historial de 6
-        """
-        return {"status": "ok", "data": raw_data}
+        if isinstance(raw_data, dict) and "error" in raw_data:
+            error_msg = raw_data.get("message", raw_data["error"])
+            return {"status": "error", "message": f"Error EMT API: {error_msg}"}
 
-    # Mètode per obtenir el color 
-    def get_line_color(self, line_number):
-        return self.line_colors.get(str(line_number), '#000000')
+        return {"status": "ok", "data": raw_data}

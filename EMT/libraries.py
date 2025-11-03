@@ -17,7 +17,9 @@ from PyQt6.QtWidgets import (
     QLineEdit,      #Un camp d'entrada d'una sola línia que permet a l'usuari introduir text
     QGridLayout,    #Posicionar elements en una graella (molt útil per formularis o jocs)
     QHBoxLayout,    #Posicionar elements en fila
-    QMessageBox     # Missatge d'error
+    QMessageBox,    # Missatge d'error
+    QSpacerItem,    # Espaiador per layouts
+    QSizePolicy    # Polítiques de mida per a widgets
 )
 
 from PyQt6 import QtCore, QtGui, QtWidgets

@@ -57,5 +57,6 @@ def get_emt_stop_times(stop_id: str, bearer_token: str) -> dict:
 # token 
 CURRENT_BEARER_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9.eyJzdWIiOiI3Nzc2MzQiLCJpYXQiOjE3NjEzMDE3NDMsImV4cCI6MzMzOTE4MTc0MywidXNlcm5hbWUiOiIxNzYxMzAxNzQzMjAwSkU4V0VJMlJFWUVLSDUyOVUzTkgiLCJ0b2tlbl9kZXZpY2UiOiJhYWIyZDhmMzI0MDRmOTFjOTJiMjM4ZDMwMTE5OTg4Y2MyYmI0OTViZTY4M2EzMTgwOGNjYzQyMTYxZWIwNmVkIiwiZGV2aWNlX3R5cGVfaWQiOjMsInJvbGVzIjoiQU5PTklNTyJ9.rYih2WaFIFXnCkO-91K81CRoiOcmS0Sq_hw2PF9yvVHoDEJOpOZ0tJd3o1_Xpr-0"
 
-# Prueba --> stop_data = get_emt_stop_times("34", CURRENT_BEARER_TOKEN)
+stop_data = get_emt_stop_times("34", CURRENT_BEARER_TOKEN)
 
+print(json.dumps(stop_data, indent=4, ensure_ascii=False))
